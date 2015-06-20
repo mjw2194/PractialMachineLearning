@@ -1,0 +1,136 @@
+---
+title: "Practical Machine Learning Project"
+author: "Maxwell J. Williams"
+date: "Friday, June 19, 2015"
+output: html_document
+---
+#Contents
+* Summary
+* Loading Data & Packages
+* Selecting Relevant Features
+* Create Training & Test Data Sets
+* Training a Simple Tree
+* Exploring the Tree
+    + Tree Results
+    + Feature Importance
+    + Fancy Tree
+    + Confusion Matrix
+* Estimating Out of Sample Error
+
+##Summary
+The objective of the analysis is to predict the exercise class. Specifically the data represents 5 classes. Only one class (Class A) represents proper form for the exercise. The other four classes (Classes B-E) represent different types of errors relating to poor form. After reading the description of the study [here](http://groupware.les.inf.puc-rio.br/har) I selected the features I felt were relevant. I also chose to use a very simple tree model for this analysis for interpretability and computational efficiency purposes.
+
+##Loading Data & Packages
+The following packages and data files are required:
+
+* Packages:
+    + knitr
+    + rpart
+    + dplyr
+    + caret
+    + rattle
+
+* Data:
+    + Training data set available [here](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv)
+    + Test data set available [here](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv)
+
+```{r Load Data & Package,include=FALSE}
+setwd("//msnet.ad/ga/UsersData/MWilliams/Documents/Learning & Development/Practical Machine Learning/Project")
+library(knitr)
+library(rpart)
+library(dplyr)
+library(caret)
+library(rattle)
+Train<-read.csv("pml-training.csv")
+New<-read.csv("pml-testing.csv")
+```
+
+##Select Relavent Features
+After reading the description of the study, it seemed like only the measurements relating to the arm, belt, dumbbell and forearm sensors would be appropriate to include. Admitidly, this study is well outside my domain of experience and was a bit difficult to digest.
+
+```{r Select relavent features}
+TrainSubset<-select(Train,classe,
+              
+              roll_belt,pitch_belt,yaw_belt,
+              gyros_belt_x,gyros_belt_y,gyros_belt_z,
+              accel_belt_x,accel_belt_y,accel_belt_z,
+              magnet_belt_x,magnet_belt_y,magnet_belt_z,
+              
+              roll_arm,pitch_arm,yaw_arm,
+              gyros_arm_x,gyros_arm_y,gyros_arm_z,
+              accel_arm_x,accel_arm_y,accel_arm_z,
+              magnet_arm_x,magnet_arm_y,magnet_arm_z,
+              
+              roll_dumbbell,pitch_dumbbell,yaw_dumbbell,
+              gyros_dumbbell_x,gyros_dumbbell_y,gyros_dumbbell_z,
+              accel_dumbbell_x,accel_dumbbell_y,accel_dumbbell_z,
+              magnet_dumbbell_x,magnet_dumbbell_y,magnet_dumbbell_z,
+              
+              roll_forearm,pitch_forearm,yaw_forearm,
+              gyros_forearm_x,gyros_forearm_y,gyros_forearm_z,
+              accel_forearm_x,accel_forearm_y,accel_forearm_z,
+              magnet_forearm_x,magnet_forearm_y,magnet_forearm_z)
+```
+
+##Creat Training & Test Data Sets
+After qualitatively selecting features to use in the analysis, I partitioned the training data set into training and test data sets. I then trained my model on the training data and estimated the out of sample error on the test data set. I thought about using stratified re-sampling, but opted to include 75% of the training data to keep it simple.
+
+```{r Create Training & Test Data}
+
+inTrain<-createDataPartition(TrainSubset$classe,p = 0.75,list = FALSE)
+
+TrainSubset<-TrainSubset[inTrain,]
+TestSubset<-TrainSubset[-inTrain,]
+```
+
+##Training a Simple Tree
+I chose to use a simple single tree model. Although the accuracy of the model will suffer, I wanted to use a model that would be easy to interpret and also computationally efficient. I also set the random seed so these results can be reproduced.
+
+```{r Train Tree}
+set.seed(44)
+TuningParam<-trainControl(method = "cv",number = 10)
+Tree<-train(classe~.,data=TrainSubset,method="rpart",trControl =TuningParam)
+```
+
+##Exploring the Tree
+The tree's estimated accuracy is between 48% and 50%. However, if we were to randomly select classes accuracy would only be about 20% (assuming the classes are equally distributed). The tree also fails to identify any Class D observations.  
+
+###Tree Results
+```{r Tree Results,echo=FALSE}
+kable(round(Tree$results,3),format = "markdown")
+```
+
+###Top 15 Most Important Features
+```{r Feature Importance,echo=FALSE}
+featureImportance<-varImp(Tree)
+featureImportance<-featureImportance$importance
+featureImportance<-data.frame(Feature=rownames(featureImportance),Importance=featureImportance$Overall)
+featureImportance<-arrange(featureImportance,desc(Importance))
+
+kable(featureImportance[1:15,],format="markdown")
+```
+
+###Fancy Tree
+```{r Fancy Plot,echo=FALSE,fig.height=7,fig.width=11}
+fancyRpartPlot(Tree$finalModel,sub = "")
+```
+
+###Accuracy & Confustion Matrix--Train Data Set
+```{r Overall Results & Confusion Martix--Train}
+predictionsTrain<-predict(object=Tree,newdata=TrainSubset)
+confusionMatrixTrain<-confusionMatrix(predictionsTrain,TrainSubset$classe)
+
+kable(as.data.frame(confusionMatrixTrain$overall),format="markdown")
+kable(confusionMatrixTrain$table,format="markdown")
+```
+
+##Estimating Out of Sample Error
+The tree's accuracy on the test data is close to our estimated accuracy at 50%.
+
+###Accuracy & Confusion Matrix--Test Data Set
+```{r Estimating Out of Sample Error}
+predictionsTest<-predict(object = Tree,newdata = TestSubset)
+confusionMatrixTest<-confusionMatrix(predictionsTest,TestSubset$classe)
+kable(as.data.frame(confusionMatrixTest$overall,format="markdown"))
+kable(confusionMatrixTest$table,format="markdown")
+```

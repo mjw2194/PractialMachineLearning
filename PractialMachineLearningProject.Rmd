@@ -79,8 +79,8 @@ After qualitatively selecting features to use in the analysis, I partitioned the
 
 inTrain<-createDataPartition(TrainSubset$classe,p = 0.75,list = FALSE)
 
-TrainSubset<-TrainSubset[inTrain,]
-TestSubset<-TrainSubset[-inTrain,]
+Train<-TrainSubset[inTrain,]
+Test<-TrainSubset[-inTrain,]
 ```
 
 ##Training a Simple Tree
@@ -89,7 +89,7 @@ I chose to use a simple single tree model. Although the accuracy of the model wi
 ```{r Train Tree}
 set.seed(44)
 TuningParam<-trainControl(method = "cv",number = 10)
-Tree<-train(classe~.,data=TrainSubset,method="rpart",trControl =TuningParam)
+Tree<-train(classe~.,data=Train,method="rpart",trControl =TuningParam)
 ```
 
 ##Exploring the Tree
@@ -117,8 +117,8 @@ fancyRpartPlot(Tree$finalModel,sub = "")
 
 ###Accuracy & Confustion Matrix--Train Data Set
 ```{r Overall Results & Confusion Martix--Train}
-predictionsTrain<-predict(object=Tree,newdata=TrainSubset)
-confusionMatrixTrain<-confusionMatrix(predictionsTrain,TrainSubset$classe)
+predictionsTrain<-predict(object=Tree,newdata=Train)
+confusionMatrixTrain<-confusionMatrix(predictionsTrain,Train$classe)
 
 kable(as.data.frame(confusionMatrixTrain$overall),format="markdown")
 kable(confusionMatrixTrain$table,format="markdown")
@@ -129,8 +129,8 @@ The tree's accuracy on the test data is close to our estimated accuracy at 50%.
 
 ###Accuracy & Confusion Matrix--Test Data Set
 ```{r Estimating Out of Sample Error}
-predictionsTest<-predict(object = Tree,newdata = TestSubset)
-confusionMatrixTest<-confusionMatrix(predictionsTest,TestSubset$classe)
+predictionsTest<-predict(object = Tree,newdata = Test)
+confusionMatrixTest<-confusionMatrix(predictionsTest,Test$classe)
 kable(as.data.frame(confusionMatrixTest$overall,format="markdown"))
 kable(confusionMatrixTest$table,format="markdown")
 ```
